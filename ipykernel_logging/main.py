@@ -115,7 +115,7 @@ def custom_ipkernel_format_processor(logger, method_name, event_dict) -> dict:
     if msg.startswith("Content:"):
         # "Content: { ... }    --->"
         msg_raw = msg.replace("Content: ", "", 1).replace("--->", "").strip()
-        return parse_message(event_dict, msg_raw, msg_type="")
+        return parse_message(event_dict, msg_raw, msg_type="unk message content")
 
     # at this point, we should have two main groups of logs we care about parsing:
     # 1. "<msg_type>: {msg_raw}"

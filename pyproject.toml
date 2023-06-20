@@ -8,7 +8,7 @@ packages = [{ include = "ipykernel_logging" }]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-structlog = "23.1.0"
+structlog = "^22.1.0"
 
 
 [tool.poetry.group.dev.dependencies]

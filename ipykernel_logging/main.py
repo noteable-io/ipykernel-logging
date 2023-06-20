@@ -42,6 +42,7 @@ def json_clean(msg: str) -> str:
         msg.replace("True", "true")
         .replace("False", "false")
         .replace("None", "null")
+        .replace("\\", "\\\\")
         .replace('"', '\\"')
         .replace("'", '"')
     )
@@ -61,14 +62,22 @@ def json_clean(msg: str) -> str:
     return msg
 
 
+def remove_ansi_from_text(text: str) -> str:
+    """Removes ANSI escape sequences from text.
+    Useful for cleaning colored text from formatted traceback strings.
+    """
+    pattern = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    return pattern.sub("", text)
+
+
 def parse_message(event_dict: dict, msg: str, msg_type: Optional[str] = None) -> dict:
     """Attempts to clean and parse the message into a dict and add it to the event_dict."""
+    msg = remove_ansi_from_text(msg)
     msg = redact_code_content(msg)
     msg_json: str = json_clean(msg)
     try:
         msg_dict: dict = json.loads(msg_json)
-    except Exception as e:  # noqa
-        print(f"Failed to parse message: {e}\n{msg_json}")
+    except Exception:  # noqa
         # something didn't parse correctly, don't raise anything since that could cause odd behavior
         return event_dict
 
@@ -106,12 +115,19 @@ def custom_ipkernel_format_processor(logger, method_name, event_dict) -> dict:
     if msg.startswith("Content:"):
         # "Content: { ... }    --->"
         msg_raw = msg.replace("Content: ", "", 1).replace("--->", "").strip()
-        return parse_message(event_dict, msg_raw, msg_type="content message")
+        return parse_message(event_dict, msg_raw, msg_type="")
 
-    if not msg.startswith("{"):
+    # at this point, we should have two main groups of logs we care about parsing:
+    # 1. "<msg_type>: {msg_raw}"
+    # 2. "{msg_raw}"
+    elif not msg.startswith("{"):
         # "execute_request: { ... }"
-        msg_type, msg_raw = msg.split(": ", 1)
-        return parse_message(event_dict, msg_raw, msg_type=msg_type)
+        try:
+            msg_type, msg_raw = msg.split(": ", 1)
+            return parse_message(event_dict, msg_raw, msg_type=msg_type)
+        except Exception: # noqa
+            # possibly a startup log or something we don't care about parsing
+            pass
 
     # { ... }
     return parse_message(event_dict, msg)

@@ -79,6 +79,11 @@ def parse_message(event_dict: dict, msg: str, msg_type: Optional[str] = None) ->
         msg_dict: dict = json.loads(msg_json)
     except Exception:  # noqa
         # something didn't parse correctly, don't raise anything since that could cause odd behavior
+        # but redact the entire message if `code` or `error` content exists at all
+        if "{'code':" in event_dict[MESSAGE_KEY]:
+            event_dict[MESSAGE_KEY] = "<message redacted; failed to parse message with code content>"
+        elif "{'status': 'error'" in event_dict[MESSAGE_KEY]:
+            event_dict[MESSAGE_KEY] = "<message redacted; failed to parse message with error content>"
         return event_dict
 
     msg_type = msg_dict.get("header", {}).get("msg_type", msg_type)
